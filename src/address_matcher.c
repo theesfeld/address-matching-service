@@ -207,8 +207,9 @@ int location_store_load(LocationStore *store, const char *connection_uri) {
     }
 
     const char *query =
-        "SELECT location_id, street, city, state, postal_code "
-        "FROM locations";
+        "SELECT location_id, street, city, state, zip_code "
+        "FROM public.locations "
+        "WHERE location_id IS NOT NULL AND street IS NOT NULL AND city IS NOT NULL AND state IS NOT NULL";
 
     PGresult *result = PQexec(conn, query);
     if (result == NULL) {
@@ -226,13 +227,16 @@ int location_store_load(LocationStore *store, const char *connection_uri) {
 
     int rows = PQntuples(result);
     for (int i = 0; i < rows; ++i) {
-        const char *location_id = PQgetvalue(result, i, 0);
+        const char *location_code = PQgetvalue(result, i, 0);
         const char *street = PQgetvalue(result, i, 1);
         const char *city = PQgetvalue(result, i, 2);
         const char *state = PQgetvalue(result, i, 3);
         const char *postal_code = PQgetvalue(result, i, 4);
 
-        if (location_id == NULL || street == NULL || city == NULL || state == NULL || postal_code == NULL) {
+        if (location_code == NULL || location_code[0] == '\0' ||
+            street == NULL || street[0] == '\0' ||
+            city == NULL || city[0] == '\0' ||
+            state == NULL || state[0] == '\0') {
             continue;
         }
 
@@ -243,11 +247,15 @@ int location_store_load(LocationStore *store, const char *connection_uri) {
         }
 
         LocationRecord *record = &store->items[store->count];
-        copy_field(record->location_id, sizeof(record->location_id), location_id);
+        copy_field(record->location_id, sizeof(record->location_id), location_code);
         copy_field(record->street, sizeof(record->street), street);
         copy_field(record->city, sizeof(record->city), city);
         copy_field(record->state, sizeof(record->state), state);
-        copy_field(record->postal_code, sizeof(record->postal_code), postal_code);
+        if (postal_code != NULL) {
+            copy_field(record->postal_code, sizeof(record->postal_code), postal_code);
+        } else {
+            record->postal_code[0] = '\0';
+        }
 
         uppercase_inplace(record->street);
         uppercase_inplace(record->city);
