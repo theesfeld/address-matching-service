@@ -1,0 +1,5 @@
+bin/
+*.o
+dist/
+address-matching-service-linux.tar.gz
+config.mk

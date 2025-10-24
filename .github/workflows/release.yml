@@ -1,0 +1,60 @@
+name: C Release
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: sudo apt-get update && sudo apt-get install -y libpq-dev
+
+      - name: Configure build
+        run: ./configure --prefix=/usr/local
+
+      - name: Build service
+        run: make
+
+      - name: Package binary
+        run: |
+          mkdir -p dist
+          cp bin/address_matching_service dist/
+          tar -C dist -czf address-matching-service-linux.tar.gz address_matching_service
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: address-matching-service-linux
+          path: address-matching-service-linux.tar.gz
+
+  release:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: address-matching-service-linux
+          path: release
+
+      - name: Determine release tag
+        id: tag
+        shell: bash
+        run: echo "value=release-$(date +%Y%m%d%H%M%S)" >> "$GITHUB_OUTPUT"
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.tag.outputs.value }}
+          name: Address Matching Service ${{ steps.tag.outputs.value }}
+          files: release/address-matching-service-linux.tar.gz
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
