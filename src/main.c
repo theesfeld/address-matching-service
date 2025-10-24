@@ -67,6 +67,7 @@ static void respond_with_html(int client_fd, const char *html_body);
 static void build_match_response(char *buffer, size_t buffer_size, const MatchResult *result);
 static void trim_buffer(char *buffer);
 static void json_escape(char *dest, size_t dest_size, const char *src);
+static void normalize_pasted_input(char *buffer);
 
 int main(void) {
     const char *bind_address = getenv("AMS_BIND_ADDRESS");
@@ -280,6 +281,7 @@ static void handle_client(int client_fd, const LocationStore *store, const Match
         memcpy(address_buffer, body, copy_length);
         address_buffer[copy_length] = '\0';
         trim_buffer(address_buffer);
+        normalize_pasted_input(address_buffer);
 
         if (address_buffer[0] == '\0') {
             respond_with_text(client_fd, 400, "Bad Request", "Address body is empty\r\n");
@@ -468,6 +470,64 @@ static void json_escape(char *dest, size_t dest_size, const char *src) {
         }
     }
     dest[offset] = '\0';
+}
+
+static void normalize_pasted_input(char *buffer) {
+    if (buffer == NULL) {
+        return;
+    }
+
+    size_t length = strlen(buffer);
+    if (length == 0) {
+        return;
+    }
+
+    for (size_t i = 0; i < length; ++i) {
+        char c = buffer[i];
+        if (c == '\t' || c == '\n' || c == '\r') {
+            buffer[i] = ' ';
+        }
+    }
+
+    char compact[AMS_MAX_LINE_LENGTH];
+    size_t write_index = 0;
+    int previous_was_space = 1;
+    for (size_t i = 0; buffer[i] != '\0' && write_index + 1 < sizeof(compact); ++i) {
+        char c = buffer[i];
+        if (isspace((unsigned char)c)) {
+            if (!previous_was_space) {
+                compact[write_index++] = ' ';
+                previous_was_space = 1;
+            }
+        } else {
+            compact[write_index++] = c;
+            previous_was_space = 0;
+        }
+    }
+    compact[write_index] = '\0';
+
+    trim_buffer(compact);
+
+    size_t compact_length = strlen(compact);
+    size_t digit_index = compact_length;
+    for (size_t i = 0; i < compact_length; ++i) {
+        if (isdigit((unsigned char)compact[i]) && (i == 0 || isspace((unsigned char)compact[i - 1]))) {
+            digit_index = i;
+            break;
+        }
+    }
+
+    if (digit_index < compact_length && digit_index > 0) {
+        memmove(compact, compact + digit_index, compact_length - digit_index + 1);
+    }
+
+    trim_buffer(compact);
+    size_t final_length = strlen(compact);
+    if (final_length >= AMS_MAX_LINE_LENGTH) {
+        final_length = AMS_MAX_LINE_LENGTH - 1;
+    }
+    memcpy(buffer, compact, final_length);
+    buffer[final_length] = '\0';
 }
 
 static void build_match_response(char *buffer, size_t buffer_size, const MatchResult *result) {
