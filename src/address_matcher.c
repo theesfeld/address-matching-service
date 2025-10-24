@@ -201,6 +201,7 @@ int location_store_load(LocationStore *store, const char *connection_uri) {
     }
 
     if (PQstatus(conn) != CONNECTION_OK) {
+        fprintf(stderr, "Postgres connection failed: %s\n", PQerrorMessage(conn));
         PQfinish(conn);
         return -1;
     }
@@ -211,11 +212,13 @@ int location_store_load(LocationStore *store, const char *connection_uri) {
 
     PGresult *result = PQexec(conn, query);
     if (result == NULL) {
+        fprintf(stderr, "Postgres query failed: %s\n", PQerrorMessage(conn));
         PQfinish(conn);
         return -1;
     }
 
     if (PQresultStatus(result) != PGRES_TUPLES_OK) {
+        fprintf(stderr, "Postgres query returned error: %s\n", PQerrorMessage(conn));
         PQclear(result);
         PQfinish(conn);
         return -1;

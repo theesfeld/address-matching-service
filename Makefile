@@ -2,9 +2,30 @@ CC ?= gcc
 CFLAGS ?= -std=c11 -Wall -Wextra -pedantic -O2
 INCLUDES := -Iinclude
 LDFLAGS ?=
-LIBS ?= -lpq
+LIBS ?=
 
 -include config.mk
+
+PQ_CFLAGS ?=
+PQ_LDFLAGS ?=
+PQ_LIBS ?=
+PG_CONFIG ?= pg_config
+
+ifeq ($(PQ_CFLAGS),)
+ifneq ($(shell command -v $(PG_CONFIG) 2>/dev/null),)
+PQ_CFLAGS := -I$(shell $(PG_CONFIG) --includedir)
+PQ_LDFLAGS := -L$(shell $(PG_CONFIG) --libdir)
+PQ_LIBS := -lpq
+else
+PQ_CFLAGS := -I/usr/include/postgresql
+PQ_LDFLAGS :=
+PQ_LIBS := -lpq
+endif
+endif
+
+CFLAGS += $(PQ_CFLAGS)
+LDFLAGS += $(PQ_LDFLAGS)
+LIBS += $(PQ_LIBS)
 
 PREFIX ?= /usr/local
 BINDIR ?= $(PREFIX)/bin

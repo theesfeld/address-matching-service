@@ -18,6 +18,7 @@ make
 The compiled binary lands in `bin/address_matching_service`. `./configure` writes `config.mk`, which the `Makefile` consumes; re-run it whenever you want to adjust installation paths.
 
 > Build prerequisite: the host must provide PostgreSQL client headers and linker libraries (e.g. `libpq-dev` on Debian/Ubuntu).
+> If `pg_config` is not on your `PATH`, either export `PG_CONFIG=/full/path/to/pg_config` or pass `./configure --with-pg-config=/full/path/to/pg_config` so the build can locate the headers and libraries.
 
 ## Installation
 
